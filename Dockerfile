@@ -1,5 +1,4 @@
 FROM ubuntu:16.04
-MAINTAINER Jason Rivers <jason@jasonrivers.co.uk>
 
 ENV NAGIOS_HOME            /opt/nagios
 ENV NAGIOS_USER            nagios
@@ -11,7 +10,6 @@ ENV NAGIOSADMIN_USER       nagiosadmin
 ENV NAGIOSADMIN_PASS       nagios
 ENV APACHE_RUN_USER        nagios
 ENV APACHE_RUN_GROUP       nagios
-ENV NAGIOS_TIMEZONE        UTC
 ENV DEBIAN_FRONTEND        noninteractive
 ENV NG_NAGIOS_CONFIG_FILE  ${NAGIOS_HOME}/etc/nagios.cfg
 ENV NG_CGI_DIR             ${NAGIOS_HOME}/sbin
@@ -149,8 +147,9 @@ RUN cd /tmp                                                                  && 
     cd /tmp && rm -Rf nrpe
 
 RUN cd /tmp                                                          && \
-    git clone https://git.code.sf.net/p/nagiosgraph/git nagiosgraph  && \
-    cd nagiosgraph                                                   && \
+    wget http://downloads.sourceforge.net/project/nagiosgraph/nagiosgraph/1.5.2/nagiosgraph-1.5.2.tar.gz    && \
+    tar -xzvf nagiosgraph-1.5.2.tar.gz                               && \
+    cd nagiosgraph-1.5.2                                                      && \
     ./install.pl --install                                      \
         --prefix /opt/nagiosgraph                               \
         --nagios-user ${NAGIOS_USER}                            \
@@ -158,18 +157,18 @@ RUN cd /tmp                                                          && \
         --nagios-perfdata-file ${NAGIOS_HOME}/var/perfdata.log  \
         --nagios-cgi-url /cgi-bin                               \
                                                                      && \
+    mkdir -p /opt/nagiosgraph/etc/                                  && \
     cp share/nagiosgraph.ssi ${NAGIOS_HOME}/share/ssi/common-header.ssi && \
-    cd /tmp && rm -Rf nagiosgraph
+    cp etc/ngshared.pm /opt/nagiosgraph/etc/                             && \
+    sed -i "s/\/etc\/nagiosgraph\/map/\/opt\/nagiosgraph\/etc\/map/g"   etc/nagiosgraph.conf    && \
+    sed -i "s/\/var/\/opt/g" etc/nagiosgraph.conf                            && \
+    cp etc/nagiosgraph.conf /opt/nagiosgraph/etc/                             && \
+    cd /tmp && rm -Rf nagiosgraph-1.5.2   && rm -f nagiosgraph-1.5.2.tar.gz
+
 
 RUN cd /opt                                                                         && \
     pip install pymssql                                                             && \
-    git clone https://github.com/willixix/naglio-plugins.git     WL-Nagios-Plugins  && \
-    git clone https://github.com/JasonRivers/nagios-plugins.git  JR-Nagios-Plugins  && \
-    git clone https://github.com/justintime/nagios-plugins.git   JE-Nagios-Plugins  && \
     git clone https://github.com/nagiosenterprises/check_mssql_collection.git   nagios-mssql  && \
-    chmod +x /opt/WL-Nagios-Plugins/check*                                          && \
-    chmod +x /opt/JE-Nagios-Plugins/check_mem/check_mem.pl                          && \
-    cp /opt/JE-Nagios-Plugins/check_mem/check_mem.pl ${NAGIOS_HOME}/libexec/           && \
     cp /opt/nagios-mssql/check_mssql_database.py ${NAGIOS_HOME}/libexec/                         && \
     cp /opt/nagios-mssql/check_mssql_server.py ${NAGIOS_HOME}/libexec/
 
@@ -202,13 +201,17 @@ RUN rm -rf /etc/sv/getty-5
 
 ADD overlay /
 
-RUN echo "use_timezone=${NAGIOS_TIMEZONE}" >> ${NAGIOS_HOME}/etc/nagios.cfg
+RUN ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && dpkg-reconfigure -f noninteractive tzdata
+
 
 # Copy example config in-case the user has started with empty var or etc
 
 RUN mkdir -p /orig/var && mkdir -p /orig/etc  && \
     cp -Rp ${NAGIOS_HOME}/var/* /orig/var/       && \
     cp -Rp ${NAGIOS_HOME}/etc/* /orig/etc/
+
+RUN mkdir -p /orig/nagiosgraph/etc && \
+    cp -RP /opt/nagiosgraph/etc/* /orig/nagiosgraph/etc/ && \
 
 RUN a2enmod session         && \
     a2enmod session_cookie  && \
@@ -220,11 +223,8 @@ RUN chmod +x /usr/local/bin/start_nagios        && \
     chmod +x /etc/sv/apache/run                 && \
     chmod +x /etc/sv/nagios/run                 && \
     chmod +x /etc/sv/postfix/run                 && \
-    chmod +x /etc/sv/rsyslog/run                 && \
-    chmod +x /opt/nagiosgraph/etc/fix-nagiosgraph-multiple-selection.sh
+    chmod +x /etc/sv/rsyslog/run
 
-RUN cd /opt/nagiosgraph/etc && \
-    sh fix-nagiosgraph-multiple-selection.sh
 
 RUN rm /opt/nagiosgraph/etc/fix-nagiosgraph-multiple-selection.sh
 
@@ -242,6 +242,6 @@ RUN echo "ServerName ${NAGIOS_FQDN}" > /etc/apache2/conf-available/servername.co
 
 EXPOSE 80
 
-VOLUME "${NAGIOS_HOME}/var" "${NAGIOS_HOME}/etc" "/var/log/apache2" "/opt/Custom-Nagios-Plugins" "/opt/nagiosgraph/var" "/opt/nagiosgraph/etc"
+VOLUME "${NAGIOS_HOME}/var" "${NAGIOS_HOME}/etc" "/var/log/apache2" "/opt/Custom-Nagios-Plugins" "/opt/nagiosgraph/var" "/opt/nagiosgraph/rrd" "/opt/nagiosgraph/etc"
 
 CMD [ "/usr/local/bin/start_nagios" ]
