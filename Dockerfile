@@ -162,6 +162,8 @@ RUN cd /tmp                                                          && \
     cp etc/ngshared.pm /opt/nagiosgraph/etc/                             && \
     sed -i "s/\/etc\/nagiosgraph\/map/\/opt\/nagiosgraph\/etc\/map/g"   etc/nagiosgraph.conf    && \
     sed -i "s/\/var/\/opt/g" etc/nagiosgraph.conf                            && \
+    sed -i "s/\/opt\/nagios\/perfdata/\/opt\/nagios\/var\/perfdata/g" etc/nagiosgraph.conf                            && \
+    sed -i "s/nagiosgraph\/cgi-bin/cgi-bin/g" etc/nagiosgraph.conf                            && \
     cp etc/nagiosgraph.conf /opt/nagiosgraph/etc/                             && \
     cd /tmp && rm -Rf nagiosgraph-1.5.2   && rm -f nagiosgraph-1.5.2.tar.gz
 
@@ -211,7 +213,7 @@ RUN mkdir -p /orig/var && mkdir -p /orig/etc  && \
     cp -Rp ${NAGIOS_HOME}/etc/* /orig/etc/
 
 RUN mkdir -p /orig/nagiosgraph/etc && \
-    cp -RP /opt/nagiosgraph/etc/* /orig/nagiosgraph/etc/ 
+    cp -RP /opt/nagiosgraph/etc/* /orig/nagiosgraph/etc/
 
 RUN a2enmod session         && \
     a2enmod session_cookie  && \
