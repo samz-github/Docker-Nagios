@@ -211,7 +211,7 @@ RUN mkdir -p /orig/var && mkdir -p /orig/etc  && \
     cp -Rp ${NAGIOS_HOME}/etc/* /orig/etc/
 
 RUN mkdir -p /orig/nagiosgraph/etc && \
-    cp -RP /opt/nagiosgraph/etc/* /orig/nagiosgraph/etc/ && \
+    cp -RP /opt/nagiosgraph/etc/* /orig/nagiosgraph/etc/ 
 
 RUN a2enmod session         && \
     a2enmod session_cookie  && \
